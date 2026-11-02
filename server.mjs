@@ -469,7 +469,17 @@ function demoState() {
     whoop: { recovery: 78, hrv: 84, rhr: 52, sleepHours: 7.4, sleepPerf: 91 },
     revenue: { revenue28d: 35302, mrr: 9850, activeSubs: 1240, trials: 96, newCustomers28d: 310 },
     companies: [],
+    sala: salaData(),
   };
+}
+
+// Sala de Acción: números del negocio que una tarea programada deja en <vault>/Datos/sala.json.
+function salaData() {
+  try {
+    const f = path.join(cfg.vault, 'Datos', 'sala.json');
+    if (!fs.existsSync(f)) return null;
+    return JSON.parse(fs.readFileSync(f, 'utf8'));
+  } catch (e) { log('sala.json ilegible', e.message); return null; }
 }
 
 // The panels' data, kept warm for a minute: the HUD polls it, and spoken answers read it without waiting.
@@ -487,6 +497,7 @@ async function jarvisStateFresh() {
   revenueDays().catch(() => {}); // warm it for spoken answers (Supabase takes a few seconds)
   const date = todayStr();
   const out = { now: new Date().toISOString(), owner: cfg.ownerName, tz: TZ, ui: jarvisUi() };
+  out.sala = salaData();
   const events = (state.agenda?.date === date ? state.agenda.events : [])
     .slice().sort((a, b) => new Date(a.start) - new Date(b.start));
   out.agenda = events.map((e) => ({
@@ -569,7 +580,7 @@ async function revenueDaysFresh() {
 const CALL_ME = process.env.JARVIS_CALL_ME || cfg.ownerName || '';
 const BRIEFING_STYLE = process.env.JARVIS_BRIEFING_STYLE ||
   'español con tuteo (nada de voseo), sin garabatos, con MUCHA energía: hype, rápido, como un relator que anuncia buenas noticias, ' +
-  'pero con el estilo de JARVIS (lo trata de "señor", un toque de ironía). Frases cortas y con punch, exclamaciones donde corresponda';
+  'pero con el estilo de JARVIS (un toque de ironía). Frases cortas y con punch, exclamaciones donde corresponda';
 // Only your app's numbers are said out loud by default; other companies' ARR stays private unless this is set.
 const BRIEFING_COMPANY_NUMBERS = process.env.JARVIS_BRIEFING_COMPANY_NUMBERS === '1';
 const briefingCache = { at: 0, text: '', pending: null, key: '' };
@@ -607,6 +618,7 @@ async function jarvisBriefing(at = '') {
       ahora: new Date(now).toLocaleString('es-CL', { timeZone: TZ, weekday: 'long', hour: '2-digit', minute: '2-digit' }),
       whoop: s.whoop,
       app: s.revenue && { nombre: app, mrrUsd: s.revenue.mrr, revenueUltimos28diasUsd: s.revenue.revenue28d, suscriptoresActivos: s.revenue.activeSubs, trialsActivos: s.revenue.trials, ...(s.demo ? {} : await revenueDays().catch(() => null)) },
+      negocio: s.sala || undefined,
       otrasEmpresas: BRIEFING_COMPANY_NUMBERS ? s.companies?.filter((c) => c.name !== REVENUE_TITLE) : undefined,
       agenda: s.agenda.map((e) => ({ hora: e.time, fin: e.end ? hhmm(e.end) : '', titulo: e.title, yaPaso: new Date(e.end || e.start) < now })),
     };
@@ -615,7 +627,8 @@ async function jarvisBriefing(at = '') {
       `Contéstale en voz alta. Estilo: ${BRIEFING_STYLE}. ` +
       `Empieza exactamente con "${hello(now)}, ${CALL_ME || 'señor'}!" y después, en este orden, saltándote lo que no venga en los datos: ` +
       `1) WHOOP, en una frase y SIEMPRE con las dos cifras: las horas que durmió y el porcentaje de recuperación ("dormiste seis horas y media y tu recuperación está en ochenta y dos por ciento"); si la recuperación es baja, igual con buena onda pero que baje la intensidad. ` +
-      `1b) Justo después, si en la agenda hay un bloque de gym o entrenamiento de la mañana que ya pasó (yaPaso), felicítalo con ganas por haber entrenado tan temprano, diciendo la hora de inicio de ese bloque ("¡y ya metiste gym a las seis de la mañana! Eso es disciplina, señor"). ` +
+      `1b) Justo después, si en la agenda hay un bloque de gym o entrenamiento de la mañana que ya pasó (yaPaso), felicítalo con ganas por haber entrenado tan temprano, diciendo la hora de inicio de ese bloque ("¡y ya metiste gym a las seis de la mañana! Eso es disciplina, ${CALL_ME || 'crack'}"). ` +
+      `1c) Si vienen datos de "negocio" (ventas y Meta Ads de la marca, en pesos argentinos): las ventas de ayer (pedidos y facturación) y cómo va el mes; después el ROAS de ayer contra el ROAS de equilibrio (si está arriba, celebralo; si está abajo, decilo claro y con calma) y el gasto de ayer. Montos redondeados como se dicen ("ochocientos mil pesos", "un millón doscientos"). ROAS con un decimal ("tres coma dos"). ` +
       `2) la app (${app}), celebrándolo si va bien ("¡${app} la está rompiendo!"): los suscriptores nuevos de hoy si vienen (hoyHastaAhora; si son menos de 5, los de ayer), comparados con su promedio diario si le gana, y el total de suscriptores activos o el MRR. Cifras redondeadas como se dicen ("veintiocho suscriptores nuevos"). Si los números no son buenos, no inventes hype: dilo con calma. ` +
       `3) cómo vienen los proyectos hoy` +
       (BRIEFING_COMPANY_NUMBERS ? ' (con las cifras de otrasEmpresas)' : ' según los bloques de la agenda, sin cifras de otras empresas') +
@@ -699,18 +712,19 @@ async function jarvisQuick(text, hora) {
     ahora: new Date(now).toLocaleString('es-CL', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
     whoop: s.whoop,
     app: s.revenue && { nombre: app, mrrUsd: s.revenue.mrr, revenueUltimos28diasUsd: s.revenue.revenue28d, suscriptoresActivos: s.revenue.activeSubs, trialsActivos: s.revenue.trials, ...(s.demo ? {} : await revenueDays().catch(() => null)) },
+    negocio: s.sala || undefined,
     agenda: s.agenda.map((e) => ({ hora: e.time, fin: e.end ? hhmm(e.end) : '', titulo: e.title, yaPaso: new Date(e.end || e.start) < now, detalle: (e.description || '').slice(0, 300) })),
   };
   const history = quickHistory.map((x) => `Él: ${x.q}\nTú: ${x.a}`).join('\n');
   const out = await runClaude(
     `Eres J.A.R.V.I.S., el asistente de ${CALL_ME || 'tu dueño'}, hablando en voz alta por el HUD. ` +
-    `Responde en 1 a 3 frases cortas, en español con tuteo, con el estilo de JARVIS (lo tratas de "señor", calmado, preciso, con un toque de ironía). ` +
+    `Responde en 1 a 3 frases cortas, en español rioplatense, con el estilo de JARVIS (la llamás siempre ${CALL_ME || 'por su nombre'}; es mujer, usá siempre femenino; rioplatense, de vos, calmado, preciso, con un toque de ironía). ` +
     `Sin markdown, sin emojis, sin listas: es para decirlo en voz alta. Usa solo estos datos; si la pregunta necesita algo que no está aquí, dilo en una frase y ofrece hacerlo ("¿quieres que lo revise?"). ` +
     `No nombres clientes ni personas externas (puede ir a un video): los títulos de la agenda a veces traen el cliente después de "/"; di solo "una reunión". La hora actual es la de "ahora".\n\n` +
     `Datos (JSON): ${JSON.stringify(data)}\n\n` + (history ? `Conversación reciente:\n${history}\n\n` : '') + `Él: ${text}`,
     { model: JARVIS_MODEL, bare: true, cwd: DIR },
   );
-  const reply = out.startsWith('⚠️') ? 'Se me cruzaron los cables, señor. ¿Me lo repites?' : out.trim();
+  const reply = out.startsWith('⚠️') ? `Se me cruzaron los cables${CALL_ME ? `, ${CALL_ME}` : ''}. ¿Me lo repetís?` : out.trim();
   jarvisRemember(text, reply);
   return reply;
 }
