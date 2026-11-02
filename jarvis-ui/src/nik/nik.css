@@ -243,3 +243,6 @@ body { -webkit-tap-highlight-color: transparent; }
 .nik-screens { width: auto !important; padding: 0 10px; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 0.15em; }
 .nik-note { display: block; margin-top: 6px; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--amber); text-transform: none; }
 @media (max-width: 760px), (pointer: coarse) and (max-width: 1000px) { .nik-screens { display: none; } }
+
+/* Sala de Acción: ROAS coloreado contra el equilibrio */
+.nik-amt.nik-zone-green, .nik-amt.nik-zone-yellow, .nik-amt.nik-zone-red { color: var(--z); }

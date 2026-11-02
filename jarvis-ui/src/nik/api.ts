@@ -16,7 +16,12 @@ export type JarvisState = {
   /** Personal bits (boot line, panel titles, calendar names), set with env vars on the server. */
   ui?: { wakeLine?: string; screens?: { match: string; url: string }[]; revenueTitle?: string; calendarLabels?: Record<string, string> }
   demo?: boolean
+  /** Sala de Acción: ventas y Meta Ads de la marca (ARS), desde <vault>/Datos/sala.json. */
+  sala?: Sala | null
 }
+
+export type SalaDia = { fecha?: string; pedidos?: number; unidades?: number; facturacion?: number; gasto?: number; conversaciones?: number; roas?: number; roasEquilibrio?: number; cpa?: number; cpaEquilibrio?: number; ganancia?: number }
+export type Sala = { actualizado?: string; hoy?: SalaDia; ayer?: SalaDia; mes?: SalaDia & { desde?: string; hasta?: string } }
 
 const KEY = 'jarvis-key'
 export function initKey(): string | null {

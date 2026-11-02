@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AgendaItem, JarvisState } from './api'
+import type { AgendaItem, JarvisState, Sala } from './api'
 import type { Phase } from '../store'
 import { speechProgress } from './voice'
 import { nowMs } from './time'
@@ -157,6 +157,45 @@ function Revenue({ n, title }: { n: JarvisState['revenue']; title?: string }) {
   )
 }
 
+const fmtArs = (n?: number) => {
+  if (n == null) return '—'
+  const a = Math.abs(n)
+  if (a >= 1e6) return `$${(n / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 1 })}M`
+  if (a >= 1e4) return `$${Math.round(n / 1000).toLocaleString('es-AR')}K`
+  return `$${Math.round(n).toLocaleString('es-AR')}`
+}
+const fmtX = (n?: number) => (n == null || !isFinite(n) ? '--' : `${n.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`)
+const roasZone = (r?: number, eq?: number) => (r == null || eq == null ? 'none' : r >= eq * 1.15 ? 'green' : r >= eq ? 'yellow' : 'red')
+
+function Ventas({ s }: { s: Sala }) {
+  return (
+    <section className="nik-panel nik-kpis">
+      <header>VENTAS <i>SALA DE ACCIÓN</i></header>
+      <div className="nik-kpi-main"><span className="nik-amt">{fmtArs(s.mes?.facturacion)}</span><small>FACTURACIÓN · ESTE MES · ARS</small></div>
+      <dl>
+        <div><dt>AYER</dt><dd>{fmtArs(s.ayer?.facturacion)}</dd></div>
+        <div><dt>PEDIDOS AYER</dt><dd>{s.ayer?.pedidos ?? '--'}</dd></div>
+        <div><dt>PEDIDOS MES</dt><dd>{s.mes?.pedidos ?? '--'}</dd></div>
+      </dl>
+    </section>
+  )
+}
+
+function MetaAds({ s }: { s: Sala }) {
+  const z = roasZone(s.ayer?.roas, s.ayer?.roasEquilibrio)
+  return (
+    <section className="nik-panel nik-kpis">
+      <header>META ADS <i>ROAS AYER</i></header>
+      <div className="nik-kpi-main"><span className={`nik-amt nik-zone-${z}`}>{fmtX(s.ayer?.roas)}</span><small>EQUILIBRIO {fmtX(s.ayer?.roasEquilibrio)} · MES {fmtX(s.mes?.roas)}</small></div>
+      <dl>
+        <div><dt>GASTO AYER</dt><dd>{fmtArs(s.ayer?.gasto)}</dd></div>
+        <div><dt>CONVERS.</dt><dd>{s.ayer?.conversaciones ?? '--'}</dd></div>
+        <div><dt>GANANCIA MES</dt><dd>{fmtArs(s.mes?.ganancia)}</dd></div>
+      </dl>
+    </section>
+  )
+}
+
 // Not rendered by default: ARR per company (RevenueCat + JARVIS_COMPANIES). Drop <Companies list={...} /> in to show it.
 export function Companies({ list }: { list: NonNullable<JarvisState['companies']> }) {
   if (!list.length) return null
@@ -235,10 +274,13 @@ export function Hud(p: {
           <span>SUEÑO {p.data.whoop?.sleepHours ?? '--'}h</span>
         </>}
         {p.data?.revenue && <span className="nik-money">REV 28D {fmtMoney(p.data.revenue.revenue28d)}</span>}
+        {p.data?.sala && <span className="nik-money">MES {fmtArs(p.data.sala.mes?.facturacion)} · ROAS {fmtX(p.data.sala.ayer?.roas)}</span>}
         <button onClick={() => setSheet((s) => !s)}>{sheet ? 'CERRAR' : 'AGENDA'}</button>
       </div>
 
-      <aside className="nik-left">{p.data?.whoop !== undefined && <Bio w={p.data.whoop} />}<Revenue n={p.data?.revenue} title={ui?.revenueTitle} /></aside>
+      <aside className="nik-left">{p.data?.sala
+        ? <><Ventas s={p.data.sala} /><MetaAds s={p.data.sala} /></>
+        : <>{p.data?.whoop !== undefined && <Bio w={p.data.whoop} />}<Revenue n={p.data?.revenue} title={ui?.revenueTitle} /></>}</aside>
       <aside className={`nik-right ${sheet ? 'open' : ''}`}><Agenda items={p.data?.agenda ?? []} onOpen={setOpen} /></aside>
       {open && <EventCard e={open} onClose={() => setOpen(null)} labels={ui?.calendarLabels} rec={rec} />}
 
