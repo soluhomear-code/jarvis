@@ -21,8 +21,10 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 grep -q 'brew shellenv' ~/.zprofile 2>/dev/null || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
 
 paso "2/9 Programas (node, git, gh, ngrok, voz gratis)"
-brew install node git gh pipx
-brew install ngrok/ngrok/ngrok 2>/dev/null || brew install --cask ngrok
+unset HOMEBREW_ASK
+export HOMEBREW_NO_INSTALL_UPGRADE=1 HOMEBREW_NO_AUTO_UPDATE=1
+for p in node git gh pipx; do command -v $p >/dev/null 2>&1 || yes | brew install $p; done
+command -v ngrok >/dev/null 2>&1 || yes | brew install ngrok/ngrok/ngrok || yes | brew install --cask ngrok
 pipx install edge-tts >/dev/null 2>&1 || true
 pipx ensurepath >/dev/null 2>&1 || true
 
